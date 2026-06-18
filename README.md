@@ -7,6 +7,9 @@ and on NixOS.
 It is based on the latest version of STM32CubeMX at the time of this writing,
 which is `6.17.0`.
 
+I know that `nixpkgs` already packages STM32CubeMX, but it simply does not work
+for me, so I created my own derivation, which actually works.
+
 ## How to use
 
 ### Get the installer

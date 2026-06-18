@@ -4,7 +4,6 @@
   requireFile,
   makeWrapper,
   unzip,
-  jre,
   autoPatchelfHook,
   patchelf,
   coreutils,
@@ -16,6 +15,8 @@
   gnused,
   file,
   auto-patchelf,
+  makeDesktopItem,
+  imagemagick,
 
   # X11 n friends
   libx11,
@@ -105,7 +106,6 @@ stdenv.mkDerivation rec {
   nativeBuildInputs = [
     makeWrapper
     unzip
-    jre
     autoPatchelfHook
     patchelf
     coreutils
@@ -117,6 +117,7 @@ stdenv.mkDerivation rec {
     gnused
     file
     auto-patchelf
+    imagemagick
   ];
 
   buildInputs = [
@@ -169,6 +170,22 @@ stdenv.mkDerivation rec {
     libgbm
   ];
 
+  iconame = "STM32CubeMX";
+  desktopItem = makeDesktopItem {
+    name = "STM32CubeMX";
+    exec = "stm32cubemx";
+    desktopName = "STM32CubeMX";
+    categories = [ "Development" ];
+    icon = "stm32cubemx";
+    comment = meta.description;
+    terminal = false;
+    startupNotify = false;
+    mimeTypes = [
+      "x-scheme-handler/sgnl"
+      "x-scheme-handler/signalcaptcha"
+    ];
+  };
+
   unpackPhase = ''
     runHook preUnpack
     mkdir source
@@ -206,9 +223,6 @@ stdenv.mkDerivation rec {
       fi
     done
 
-    pwd
-    ls
-
     chmod +x SetupSTM32CubeMX-${version}
 
     cd ..
@@ -236,13 +250,11 @@ stdenv.mkDerivation rec {
     </AutomatedInstallation>
     EOF
 
-        pwd
-        ls
         chmod +x SetupSTM32CubeMX-${version}
         
         export INSTALL4J_JAVA_HOME=$PWD/jre
         export JAVA_HOME=$PWD/jre
-        export PATH=$PWD/jre/bin:${coreutils}/bin:${bash}/bin:${proot}/bin:${stdenv.cc.cc.lib}/bin
+        export PATH=$PWD/jre/bin:${coreutils}/bin:${bash}/bin:${proot}/bin:${stdenv.cc.cc.lib}/bin:$PATH
 
         mkdir -p $PWD/bin
 
@@ -269,6 +281,27 @@ stdenv.mkDerivation rec {
           --chdir $out/opt \
           --set QT_QPA_PLATFORM wayland \
           --prefix LD_LIBRARY_PATH : ${lib.makeLibraryPath buildInputs}
+
+        for size in 16 24 32 48 64 128 256; do
+          mkdir -pv $out/share/icons/hicolor/"$size"x"$size"/apps
+          if [ $size -eq 256 ]; then
+            cp $out/opt/help/${iconame}.png \
+              $out/share/icons/hicolor/"$size"x"$size"/apps/${pname}.png
+          else
+            magick $out/opt/help/${iconame}.png -resize "$size"x"$size" \
+              $out/share/icons/hicolor/"$size"x"$size"/apps/${pname}.png
+          fi
+        done;
+
+        mkdir -p $out/share/applications
+        cp ${desktopItem}/share/applications/*.desktop $out/share/applications/
+        if ! grep -q StartupWMClass= "$out"/share/applications/*.desktop; then
+            chmod +w $out/share/applications/*.desktop
+            echo "StartupWMClass=com-st-microxplorer-maingui-STM32CubeMX" >> "$out"/share/applications/*.desktop
+        else
+            echo "error: upstream already provides StartupWMClass= in desktop file -- please update package expr" >&2
+            exit 1
+        fi
   '';
 
   preFixup = ''
@@ -282,6 +315,7 @@ stdenv.mkDerivation rec {
         gnused
         file
         auto-patchelf
+        imagemagick
       ]
     }:$PATH
   '';
